@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <db:generic-config name="LocalPostgreSQLInstallation" url="jdbc:postgresql://localhost:5432/postgres?user=andreasgrimm" driverClassName="org.postgresql.Driver" doc:name="Generic Database Configuration"/>
+    <flow name="getValue">
+        <choice tracking:enable-default-events="true" doc:name="Choice">
+            <when expression="#[flowVars.system == empty || flowVars.value == empty]">
+                <db:select config-ref="LocalPostgreSQLInstallation" doc:name="Database without parameters">
+                    <db:dynamic-query><![CDATA[SELECT "Entity", "Attribute", "System", "Value" FROM "DataTable" WHERE "Entity" LIKE '#[flowVars.entity]' AND "Attribute" LIKE '#[flowVars.attribute]']]></db:dynamic-query>
+                </db:select>
+            </when>
+            <otherwise>
+                <db:select config-ref="LocalPostgreSQLInstallation" doc:name="Database">
+                    <db:dynamic-query><![CDATA[SELECT "Group" FROM "DataTable" WHERE "Entity" LIKE '#[flowVars.entity]' AND "Attribute" LIKE '#[flowVars.attribute]' AND "System" LIKE '#[flowVars.system]' AND "Value" LIKE '#[flowVars.value]']]></db:dynamic-query>
+                </db:select>
+                <foreach collection="#[payload]" doc:name="For Each">
+                    <set-variable variableName="Group" value="#[payload.group]" doc:name="Variable"/>
+                    <db:select config-ref="LocalPostgreSQLInstallation" doc:name="Database">
+                        <db:dynamic-query><![CDATA[SELECT "Entity", "Attribute", "System", "Value" FROM "DataTable" WHERE "Group" LIKE '#[flowVars.Group]']]></db:dynamic-query>
+                    </db:select>
+                    <set-variable variableName="result" value="#[payload]" doc:name="Variable"/>
+                </foreach>
+                <set-payload value="#[flowVars.result]" doc:name="Set Payload"/>
+            </otherwise>
+        </choice>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data/list_map.dwl"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json skipNullOn="everywhere"
+---
+{
+input: {
+	entity: flowVars.entity,
+	attribute: flowVars.attribute,
+	system: flowVars.system,
+	value: flowVars.value
+	},
+output: payload map {
+	system: $.system,
+	value: $.value
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <catch-exception-strategy doc:name="Catch Exception Strategy">
+            <choice doc:name="Choice">
+                <when expression="#[flowVars.default != empty]">
+                    <set-payload value="#[flowVars.default]" doc:name="Set Payload"/>
+                </when>
+                <otherwise>
+                    <set-property propertyName="http.status" value="404" doc:name="Set Status 404"/>
+            		<set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            		<set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload"/>
+                </otherwise>
+            </choice>
+        </catch-exception-strategy>
+    </flow>
+</mule>

@@ -1,0 +1,12 @@
+#%RAML 1.0 Library
+usage: Defines response types for the x-ref API in case of errors
+
+types:
+  Response:
+    type: object
+    properties:
+      description: string
+      error: string
+    example:
+      description: "description of the error"
+      error: "actual error from the backend"

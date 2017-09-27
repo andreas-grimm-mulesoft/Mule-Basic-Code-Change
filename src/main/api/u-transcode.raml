@@ -1,0 +1,89 @@
+#%RAML 1.0
+title: u-transcode
+version: 0.1
+description: Provides a list of all translations for given business entities and attributes based on search parameters
+baseUri: https://u-transcode.eu.cloudhub.io
+mediaType: application/json
+uses:
+  response: libraries/response.raml
+  upload: libraries/upload.raml
+  
+  
+traits:
+  searchable: !include traits/searchable.raml
+
+/{entity}:
+  description: Loads a list of all attributes into the backend for a particular business entity
+  put:
+    description: Loads the list of translations for a particular business entity
+    body:
+      type: upload.Input
+      example: !include examples/uploadEntity.raml
+    responses:
+      201:
+        body:
+          application/json:
+            example: !include examples/success.raml
+      500:
+        body: 
+          application/json:
+            example: !include examples/internalError.raml
+/{entity}/{attribute}:
+  description: Provides a list of all translations for given business entities and attributes based on search parameters
+  uriParameters:
+   entity: 
+    description: "Describes the business entity which needs to be translated, e.g. customer. Special case: Language translates between languages"
+    required: true
+   attribute:
+    description: Identifies the attribute of the entity to be returned
+    type: string
+  get:
+    description: Returns the list of translations
+    is: searchable
+    queryParameters:
+      default:
+        description: default value to be returned, will expect the http.status to be set to 200 if no results are found
+        type: string
+        required: false
+      system:
+        description: |
+              application name of the value to be translated. This limits the return only to the corresponding key / value pair list which translate to the search parameters.
+        type: string
+        required: false
+      value:
+        description: |
+              value to be translated. This limits the return only to the corresponding key / value pair list which translate to the search parameters.
+        type: string
+        required: false    
+    responses: 
+        200:
+          body: 
+            application/json:
+              type: response.Response
+              examples:
+                with-query-parameter: !include examples/successReturnWithQueryParameter.raml
+                no-query-parameter: !include examples/successReturnNoQueryParameter.raml
+        404:
+          body: 
+            application/json:
+              example: !include examples/functionNotFound.raml
+        500:
+          body: 
+            application/json:
+              example: !include examples/internalError.raml
+  delete:
+    description: Deletes all translations for the business entity and the related attribute
+    responses: 
+        200:
+          body: 
+            application/json:
+              example: !include examples/success.raml
+        404:
+          body: 
+            application/json:
+              example: !include examples/functionNotFound.raml
+        500:
+          body: 
+            application/json:
+              example: !include examples/internalError.raml
+    

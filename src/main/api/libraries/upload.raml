@@ -1,0 +1,23 @@
+#%RAML 1.0 Library
+usage: Defines response types for the x-ref API
+
+types:
+  Input:
+    type: object
+    properties:
+      control: array
+      input: array
+    example:
+      control:
+        [
+          entity: string,
+          attribute: string,
+          leadSystem: string
+        ]
+      input:
+        [
+          [
+            system01: value01,
+            system02: value02
+          ]
+        ]
